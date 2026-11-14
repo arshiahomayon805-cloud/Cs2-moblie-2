@@ -1,0 +1,1062 @@
+<!DOCTYPE html>
+<html lang="fa">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>CS Mobile 10.0 - Online</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none; -webkit-user-select:none; }
+  html,body { width:100%; height:100%; overflow:hidden; background:#050505; font-family:'Segoe UI',Arial,sans-serif; touch-action:none; color:#fff; }
+  
+  #game { position:fixed; inset:0; z-index:1; }
+  canvas { display:block; width:100%; height:100%; }
+  
+  .hidden { display:none !important; }
+
+  /* --- Loading Screen --- */
+  #loading { position:fixed; inset:0; z-index:200; background:#0a0a0f; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+  .load-logo { font-size:40px; font-weight:900; color:#0f0; text-shadow:0 0 20px #0f0; margin-bottom:30px; letter-spacing:5px; animation:pulse 1.5s infinite; }
+  @keyframes pulse { 0%{opacity:0.7;} 50%{opacity:1; text-shadow:0 0 40px #0f0;} 100%{opacity:0.7;} }
+  .load-bar-bg { width:250px; height:6px; background:#222; border-radius:3px; overflow:hidden; }
+  .load-bar-fill { width:0%; height:100%; background:#0f0; box-shadow:0 0 10px #0f0; transition:width 0.1s; }
+
+  /* --- Menus --- */
+  .screen { position:fixed; inset:0; z-index:100; display:flex; flex-direction:column; align-items:center; justify-content:center; background:rgba(10,10,15,0.9); backdrop-filter:blur(10px); }
+  .title { font-size:42px; font-weight:900; color:#fff; text-shadow:0 0 15px #0f0, 0 0 30px #0f0; letter-spacing:4px; margin-bottom:40px; text-align:center; }
+  
+  .btn { width:min(320px, 85vw); padding:16px; margin:8px 0; font-size:16px; font-weight:bold; color:#fff; background:rgba(255,255,255,0.05); border:2px solid rgba(255,255,255,0.2); border-radius:12px; cursor:pointer; transition:all 0.2s; text-align:center; position:relative; overflow:hidden; }
+  .btn:active { transform:scale(0.96); }
+  .btn-green { background:rgba(0,255,0,0.1); border-color:#0f0; color:#0f0; box-shadow:0 0 15px rgba(0,255,0,0.2); }
+  .btn-green:active { background:rgba(0,255,0,0.3); }
+  .btn-blue { background:rgba(0,150,255,0.1); border-color:#0af; color:#0af; box-shadow:0 0 15px rgba(0,150,255,0.2); }
+  .btn-blue:active { background:rgba(0,150,255,0.3); }
+  .btn-red { background:rgba(255,0,0,0.1); border-color:#f00; color:#f00; }
+  .btn-red:active { background:rgba(255,0,0,0.3); }
+
+  .input-box { width:min(320px, 85vw); padding:15px; margin:10px 0; background:rgba(0,0,0,0.5); border:2px solid #555; border-radius:10px; color:#fff; font-size:16px; text-align:center; outline:none; }
+  .input-box:focus { border-color:#0f0; }
+
+  /* --- Lobby --- */
+  .room-list { width:min(400px, 90vw); height:300px; overflow-y:auto; background:rgba(0,0,0,0.5); border:2px solid #333; border-radius:12px; padding:10px; margin-top:20px; display:flex; flex-direction:column; gap:8px; }
+  .room-item { display:flex; justify-content:space-between; align-items:center; padding:12px 16px; background:rgba(255,255,255,0.05); border:1px solid #444; border-radius:8px; cursor:pointer; }
+  .room-item:active { background:rgba(0,255,0,0.2); border-color:#0f0; }
+  .room-name { font-weight:bold; font-size:14px; }
+  .room-players { color:#0f0; font-size:12px; }
+
+  /* --- HUD --- */
+  #hud { position:fixed; inset:0; z-index:10; pointer-events:none; }
+  #crosshair { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); width:24px; height:24px; transition:width 0.1s, height 0.1s; }
+  #crosshair::before, #crosshair::after { content:''; position:absolute; background:#0f0; box-shadow:0 0 4px #0f0; }
+  #crosshair::before { left:50%; top:0; width:2px; height:100%; transform:translateX(-50%); }
+  #crosshair::after { top:50%; left:0; height:2px; width:100%; transform:translateY(-50%); }
+  
+  #health-box { position:absolute; bottom:30px; left:30px; width:150px; }
+  .bar-bg { width:100%; height:14px; background:rgba(0,0,0,0.6); border-radius:7px; border:1px solid #555; overflow:hidden; }
+  #health-bar { height:100%; width:100%; background:linear-gradient(90deg, #f00, #0f0); transition:width 0.2s; }
+  
+  #ammo-box { position:absolute; bottom:25px; right:30px; text-align:right; text-shadow:2px 2px 4px #000; }
+  #ammo-current { font-size:36px; font-weight:900; color:#fff; line-height:1; }
+  #ammo-reserve { font-size:18px; color:#aaa; }
+  #weapon-name { font-size:14px; color:#0af; font-weight:bold; letter-spacing:1px; margin-bottom:4px; }
+
+  #minimap-container { position:absolute; top:30px; right:30px; width:120px; height:120px; border-radius:50%; border:2px solid rgba(0,255,0,0.5); background:rgba(0,0,0,0.6); overflow:hidden; box-shadow:0 0 15px rgba(0,255,0,0.3); }
+  #minimap { width:100%; height:100%; }
+  
+  #score-box { position:absolute; top:30px; left:30px; background:rgba(0,0,0,0.6); padding:8px 16px; border-radius:8px; font-size:16px; font-weight:bold; border-left:4px solid #0f0; }
+  #killfeed { position:absolute; top:80px; left:30px; display:flex; flex-direction:column; gap:6px; }
+  .kf-item { background:rgba(0,0,0,0.7); color:#fff; font-size:13px; padding:6px 10px; border-radius:4px; animation:slide 0.2s; }
+  @keyframes slide { from{opacity:0;transform:translateX(-20px);} to{opacity:1;transform:translateX(0);} }
+
+  #hitmarker { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); color:#fff; font-size:24px; opacity:0; font-weight:bold; }
+  #hitmarker.show { animation:hit 0.2s; }
+  #hitmarker.head { color:#f0f; font-size:32px; text-shadow:0 0 10px #f0f; }
+  @keyframes hit { 0%{opacity:1;transform:translate(-50%,-50%) scale(1.5);} 100%{opacity:0;transform:translate(-50%,-50%) scale(1);} }
+
+  #dmg-indicator { position:absolute; inset:0; background:radial-gradient(circle, transparent 50%, rgba(255,0,0,0.6) 100%); opacity:0; transition:opacity 0.3s; pointer-events:none; }
+  #scope-overlay { position:fixed; inset:0; z-index:5; display:none; background:radial-gradient(circle at center, transparent 30%, #000 32%); pointer-events:none; }
+  #scope-overlay::before, #scope-overlay::after { content:''; position:absolute; background:#0f0; }
+  #scope-overlay::before { left:50%; top:20%; width:1px; height:60%; transform:translateX(-50%); }
+  #scope-overlay::after { top:50%; left:20%; height:1px; width:60%; transform:translateY(-50%); }
+
+  /* --- Controls --- */
+  #controls { position:fixed; inset:0; z-index:20; pointer-events:none; }
+  #joy-area { position:absolute; bottom:40px; left:30px; width:140px; height:140px; background:rgba(255,255,255,0.05); border:2px solid rgba(255,255,255,0.2); border-radius:50%; pointer-events:auto; touch-action:none; }
+  #joy-knob { position:absolute; left:50%; top:50%; width:60px; height:60px; background:rgba(0,255,0,0.3); border:2px solid rgba(0,255,0,0.7); border-radius:50%; transform:translate(-50%,-50%); pointer-events:none; box-shadow:0 0 15px rgba(0,255,0,0.4); }
+  
+  .action-btn { position:absolute; border-radius:50%; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:bold; font-size:12px; pointer-events:auto; touch-action:none; border:2px solid rgba(255,255,255,0.4); background:rgba(0,0,0,0.4); transition:transform 0.05s; text-shadow:1px 1px 2px #000;}
+  .action-btn:active, .action-btn.active { transform:scale(0.9); background:rgba(255,255,255,0.5); }
+  
+  #btn-fire { right:30px; bottom:30px; width:100px; height:100px; background:rgba(255,0,0,0.4); border-color:rgba(255,0,0,0.8); font-size:18px; }
+  #btn-ads { right:140px; bottom:80px; width:60px; height:60px; background:rgba(0,150,255,0.4); border-color:rgba(0,150,255,0.8); }
+  #btn-reload { right:30px; bottom:150px; width:60px; height:60px; background:rgba(255,200,0,0.4); border-color:rgba(255,200,0,0.8); }
+  #btn-jump { right:140px; bottom:160px; width:60px; height:60px; background:rgba(0,255,0,0.4); border-color:rgba(0,255,0,0.8); }
+  #btn-switch { right:30px; bottom:230px; width:50px; height:50px; background:rgba(150,0,255,0.4); border-color:rgba(150,0,255,0.8); font-size:10px; }
+</style>
+</head>
+<body>
+
+<div id="game"></div>
+<div id="scope-overlay"></div>
+
+<!-- Loading Screen -->
+<div id="loading">
+  <div class="load-logo">CS MOBILE 10</div>
+  <div class="load-bar-bg"><div class="load-bar-fill" id="load-fill"></div></div>
+  <div style="margin-top:20px; color:#0f0; font-size:12px;" id="load-text">در حال بارگذاری دارایی‌ها...</div>
+</div>
+
+<!-- Main Menu -->
+<div id="mainMenu" class="screen hidden">
+  <div class="title">CS MOBILE 10</div>
+  <button class="btn btn-green" id="btn-mp">🌐 بازی آنلاین</button>
+  <button class="btn btn-blue" id="btn-sp">🤖 بازی آفلاین (با ربات)</button>
+</div>
+
+<!-- Online Lobby -->
+<div id="onlineLobby" class="screen hidden">
+  <div class="title" style="font-size:28px; margin-bottom:20px;">اتاق‌های بازی</div>
+  <input type="text" id="room-name-input" class="input-box" placeholder="نام اتاق (مثلاً اتاق 1)">
+  <button class="btn btn-green" id="btn-create-room">➕ ساخت اتاق جدید</button>
+  <div class="room-list" id="room-list">
+    <!-- Rooms will appear here -->
+  </div>
+  <button class="btn" style="margin-top:20px;" id="btn-back-menu">بازگشت</button>
+</div>
+
+<!-- Game Over -->
+<div id="gameOver" class="screen hidden">
+  <div class="title" id="go-title" style="color:#f00;">شما مردید</div>
+  <div id="go-stats" style="font-size:18px; margin-bottom:30px;">کشته‌ها: 0</div>
+  <button class="btn btn-green" id="btn-replay">بازی مجدد</button>
+  <button class="btn" id="btn-exit">خروج به منو</button>
+</div>
+
+<!-- HUD -->
+<div id="hud" class="hidden">
+  <div id="crosshair"></div>
+  <div id="dmg-indicator"></div>
+  
+  <div id="health-box">
+    <div class="bar-bg"><div id="health-bar"></div></div>
+  </div>
+  
+  <div id="ammo-box">
+    <div id="weapon-name">AK-47</div>
+    <div id="ammo-current">30</div>
+    <div id="ammo-reserve">/ 90</div>
+  </div>
+  
+  <div id="minimap-container"><canvas id="minimap" width="120" height="120"></canvas></div>
+  <div id="score-box">کشته: 0</div>
+  <div id="killfeed"></div>
+  <div id="hitmarker">✕</div>
+</div>
+
+<!-- Controls -->
+<div id="controls" class="hidden">
+  <div id="joy-area"><div id="joy-knob"></div></div>
+  <div class="action-btn" id="btn-fire">شلیک</div>
+  <div class="action-btn" id="btn-ads">ADS</div>
+  <div class="action-btn" id="btn-reload">ریلود</div>
+  <div class="action-btn" id="btn-jump">پرش</div>
+  <div class="action-btn" id="btn-switch">تعویض</div>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+
+// ==========================================
+// 1. تنظیمات سرور (اینجا را تغییر دهید)
+// ==========================================
+// آدرسی که Render به شما می‌دهد را اینجا وارد کنید (با wss شروع شود)
+// مثال: const SERVER_URL = 'wss://my-cs-game.onrender.com';
+const SERVER_URL = 'wss://YOUR-SERVER-URL.onrender.com'; 
+
+// ==========================================
+// 2. دیتابیس اسلحه‌ها
+// ==========================================
+const WEAPONS = {
+  ak47: { name: 'AK-47', dmg: 35, rate: 100, mag: 30, reserve: 90, reload: 2000, spread: 0.02, recoil: 0.05, auto: true, color: 0x553311 },
+  m4a4: { name: 'M4A4', dmg: 30, rate: 90, mag: 30, reserve: 90, reload: 2000, spread: 0.015, recoil: 0.04, auto: true, color: 0x222222 },
+  awp: { name: 'AWP', dmg: 115, rate: 1500, mag: 5, reserve: 30, reload: 3500, spread: 0.001, recoil: 0.15, auto: false, color: 0x2a3a1a, scope: true }
+};
+
+let playerData = { weaponId: 'ak47', health: 100, score: 0, kills: 0 };
+let isOnline = false;
+let myId = null;
+let socket = null;
+let currentRoom = null;
+
+// ==========================================
+// 3. موتور گرافیکی (Three.js)
+// ==========================================
+const container = document.getElementById('game');
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x87CEEB); 
+scene.fog = new THREE.Fog(0x87CEEB, 30, 150);
+
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+camera.rotation.order = 'YXZ';
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+container.appendChild(renderer.domElement);
+
+// نورپردازی
+const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.8);
+scene.add(hemiLight);
+const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
+dirLight.position.set(30, 60, 30);
+dirLight.castShadow = true;
+dirLight.shadow.camera.top = 50; dirLight.shadow.camera.bottom = -50;
+dirLight.shadow.camera.left = -50; dirLight.shadow.camera.right = 50;
+dirLight.shadow.mapSize.width = 2048; dirLight.shadow.mapSize.height = 2048;
+scene.add(dirLight);
+scene.add(new THREE.AmbientLight(0xffffff, 0.3));
+
+// ==========================================
+// 4. ساخت دنیای بازی
+// ==========================================
+const colliders = [];
+const wallMeshes = [];
+const enemyMeshes = [];
+let bloodDecals = [];
+let ragdolls = [];
+let bulletHoles = [];
+
+function createWorld() {
+  const groundGeo = new THREE.PlaneGeometry(150, 150);
+  const groundMat = new THREE.MeshStandardMaterial({ color: 0x3a4a3a, roughness: 0.9 });
+  const ground = new THREE.Mesh(groundGeo, groundMat);
+  ground.rotation.x = -Math.PI / 2;
+  ground.receiveShadow = true;
+  scene.add(ground);
+
+  // دیوارهای محیطی
+  const owGeo = new THREE.BoxGeometry(100, 15, 4);
+  const owMat = new THREE.MeshStandardMaterial({ color: 0x444444 });
+  [[0, 7.5, -50, 0], [0, 7.5, 50, 0], [-50, 7.5, 0, Math.PI/2], [50, 7.5, 0, Math.PI/2]].forEach(([x,y,z,ry]) => {
+    const m = new THREE.Mesh(owGeo, owMat);
+    m.position.set(x,y,z);
+    m.rotation.y = ry;
+    m.castShadow = true; m.receiveShadow = true;
+    scene.add(m); wallMeshes.push(m);
+    colliders.push({ minX: x-(ry?2:50), maxX: x+(ry?2:50), minY: 0, maxY: 15, minZ: z-(ry?50:2), maxZ: z+(ry?50:2) });
+  });
+
+  // کرات‌ها و موانع
+  const wallMat = new THREE.MeshStandardMaterial({ color: 0x8a7a6a, roughness: 0.8 });
+  for (let i=0; i<30; i++) {
+    const w = 2 + Math.random() * 4;
+    const h = 2 + Math.random() * 3;
+    const x = (Math.random() - 0.5) * 80;
+    const z = (Math.random() - 0.5) * 80;
+    if (Math.hypot(x, z) < 10) continue; // فضای خالی وسط
+
+    const geo = new THREE.BoxGeometry(w, h, w);
+    const mesh = new THREE.Mesh(geo, wallMat);
+    mesh.position.set(x, h/2, z);
+    mesh.castShadow = true; mesh.receiveShadow = true;
+    scene.add(mesh); wallMeshes.push(mesh);
+    colliders.push({ minX: x - w/2, maxX: x + w/2, minY: 0, maxY: h, minZ: z - w/2, maxZ: z + w/2 });
+  }
+}
+
+// ==========================================
+// 5. سیستم بازیکن (اول شخص + دست و اسلحه)
+// ==========================================
+const player = {
+  pos: new THREE.Vector3(0, 0, 20), vel: new THREE.Vector3(),
+  yaw: 0, pitch: 0, height: 1.7, radius: 0.4, onGround: false,
+  ammo: 30, reserve: 90, reloading: false, reloadTimer: 0, recoil: 0
+};
+
+const viewmodel = new THREE.Group();
+camera.add(viewmodel);
+viewmodel.position.set(0.25, -0.25, -0.5);
+
+function buildViewmodel(wId) {
+  while(viewmodel.children.length > 0) viewmodel.remove(viewmodel.children[0]);
+  const w = WEAPONS[wId];
+  const gunMat = new THREE.MeshStandardMaterial({ color: w.color, metalness: 0.8, roughness: 0.3 });
+  const metalMat = new THREE.MeshStandardMaterial({ color: 0x111111, metalness: 0.9, roughness: 0.2 });
+  const skinMat = new THREE.MeshStandardMaterial({ color: 0xd4a373, roughness: 0.6 });
+  
+  // بدنه اسلحه
+  const body = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.1, 0.6), gunMat);
+  body.position.set(0, 0, -0.3); viewmodel.add(body);
+  const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.4, 8), metalMat);
+  barrel.rotation.x = Math.PI/2; barrel.position.set(0, 0.02, -0.75); viewmodel.add(barrel);
+  const mag = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.2, 0.1), metalMat);
+  mag.position.set(0, -0.15, -0.2); mag.rotation.x = 0.2; viewmodel.add(mag);
+  
+  if (w.scope) {
+    const scope = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.3, 12), metalMat);
+    scope.rotation.x = Math.PI/2; scope.position.set(0, 0.1, -0.3); viewmodel.add(scope);
+  }
+
+  // دست‌ها
+  const rArm = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.3), skinMat);
+  rArm.position.set(0, -0.08, 0.1); viewmodel.add(rArm);
+  const lArm = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.35), skinMat);
+  lArm.position.set(0, -0.08, -0.4); viewmodel.add(lArm);
+
+  // فلش نور
+  const flash = new THREE.PointLight(0xffaa00, 0, 5);
+  flash.position.set(0, 0, -0.9);
+  viewmodel.add(flash);
+  viewmodel.userData.muzzle = flash;
+}
+
+// ==========================================
+// 6. ساخت کاراکتر (دشمن و بازیکن آنلاین)
+// ==========================================
+const enemies = [];
+const remotePlayers = {};
+
+function createCharacterModel(color = 0xcc2222) {
+  const group = new THREE.Group();
+  
+  const bodyMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.7 });
+  const armorMat = new THREE.MeshStandardMaterial({ color: color, roughness: 0.5 });
+  const skinMat = new THREE.MeshStandardMaterial({ color: 0xd4a373, roughness: 0.6 });
+  
+  // حلقه تیم
+  const ring = new THREE.Mesh(new THREE.RingGeometry(0.4, 0.6, 16), new THREE.MeshBasicMaterial({ color: color, side: THREE.DoubleSide, transparent: true, opacity: 0.5 }));
+  ring.rotation.x = -Math.PI / 2; ring.position.y = 0.05; group.add(ring);
+
+  // پاها
+  const legGeo = new THREE.CylinderGeometry(0.1, 0.08, 0.8, 8);
+  legGeo.translate(0, -0.4, 0);
+  const legL = new THREE.Mesh(legGeo, bodyMat); legL.position.set(-0.15, 0.8, 0); legL.castShadow = true;
+  const legR = new THREE.Mesh(legGeo, bodyMat); legR.position.set(0.15, 0.8, 0); legR.castShadow = true;
+  group.add(legL, legR);
+
+  // بدن و سر
+  const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.22, 0.8, 8), armorMat);
+  torso.position.set(0, 1.2, 0); torso.castShadow = true; group.add(torso);
+  
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.22, 16, 16), skinMat);
+  head.position.set(0, 1.85, 0); head.castShadow = true; group.add(head);
+  
+  const helmet = new THREE.Mesh(new THREE.SphereGeometry(0.24, 16, 16, 0, Math.PI*2, 0, Math.PI/2), new THREE.MeshStandardMaterial({color:0x111111}));
+  helmet.position.set(0, 1.88, 0); group.add(helmet);
+
+  // اسلحه در دست
+  const eGun = new THREE.Group();
+  const eGunBody = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.08, 0.5), new THREE.MeshStandardMaterial({color:0x553311}));
+  const eGunBarrel = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.3, 8), new THREE.MeshStandardMaterial({color:0x111111}));
+  eGunBarrel.rotation.x = Math.PI/2; eGunBarrel.position.z = -0.35;
+  eGun.add(eGunBody, eGunBarrel);
+  eGun.position.set(0.15, 1.2, -0.3);
+  group.add(eGun);
+
+  // دست‌ها
+  const armL = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.06, 0.5, 8), bodyMat);
+  armL.position.set(-0.3, 1.3, -0.1); armL.rotation.z = 0.3; armL.rotation.x = -0.5;
+  const armR = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.06, 0.5, 8), bodyMat);
+  armR.position.set(0.3, 1.3, -0.1); armR.rotation.z = -0.3; armR.rotation.x = -0.5;
+  group.add(armL, armR);
+
+  // نوار سلامتی
+  const hbCanvas = document.createElement('canvas'); hbCanvas.width = 64; hbCanvas.height = 8;
+  const hbTex = new THREE.CanvasTexture(hbCanvas);
+  const hbSprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: hbTex, depthTest: false }));
+  hbSprite.scale.set(1, 0.1, 1); hbSprite.position.y = 2.2;
+  group.add(hbSprite);
+
+  return { group, legL, legR, torso, head, helmet, hbSprite, hbCtx: hbCanvas.getContext('2d'), hbTex };
+}
+
+function createEnemy(x, z) {
+  const model = createCharacterModel(0xcc2222); // تیم قرمز
+  model.group.position.set(x, 0, z);
+  scene.add(model.group);
+
+  const eData = {
+    ...model, pos: new THREE.Vector3(x, 0, z),
+    health: 100, maxHealth: 100, alive: true, walkPhase: Math.random() * 10, fireCd: 1 + Math.random()
+  };
+
+  model.torso.userData = { enemy: eData, isHead: false }; enemyMeshes.push(model.torso);
+  model.head.userData = { enemy: eData, isHead: true }; enemyMeshes.push(model.head);
+  model.helmet.userData = { enemy: eData, isHead: true }; enemyMeshes.push(model.helmet);
+  model.legL.userData = { enemy: eData, isHead: false }; enemyMeshes.push(model.legL);
+  model.legR.userData = { enemy: eData, isHead: false }; enemyMeshes.push(model.legR);
+
+  updateEnemyHealthBar(eData);
+  enemies.push(eData);
+}
+
+function updateEnemyHealthBar(e) {
+  const ctx = e.hbCtx;
+  ctx.clearRect(0, 0, 64, 8);
+  ctx.fillStyle = 'rgba(0,0,0,0.8)'; ctx.fillRect(0, 0, 64, 8);
+  const w = Math.max(0, (e.health / e.maxHealth) * 62);
+  ctx.fillStyle = e.health > 50 ? '#0f0' : '#f00'; ctx.fillRect(1, 1, w, 6);
+  e.hbTex.needsUpdate = true;
+}
+
+// ==========================================
+// 7. فیزیک مرگ (Ragdoll) و خون
+// ==========================================
+function spawnRagdoll(enemyData, impactDir) {
+  enemyData.group.visible = false;
+  const parts = [];
+  
+  const addPart = (posOffset, geo, mat) => {
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.copy(enemyData.group.position).add(posOffset);
+    mesh.castShadow = true;
+    scene.add(mesh);
+    
+    const vel = impactDir.clone().multiplyScalar(4 + Math.random() * 4);
+    vel.y += 3 + Math.random() * 3;
+    
+    parts.push({
+      mesh, vel, angVel: new THREE.Vector3((Math.random()-0.5)*15, (Math.random()-0.5)*15, (Math.random()-0.5)*15),
+      life: 5.0
+    });
+  };
+
+  addPart(new THREE.Vector3(0, 1.2, 0), new THREE.CylinderGeometry(0.25, 0.22, 0.8, 8), new THREE.MeshStandardMaterial({color:0xcc2222}));
+  addPart(new THREE.Vector3(0, 1.85, 0), new THREE.SphereGeometry(0.22, 16, 16), new THREE.MeshStandardMaterial({color:0xd4a373}));
+  addPart(new THREE.Vector3(-0.15, 0.4, 0), new THREE.CylinderGeometry(0.1, 0.08, 0.8, 8), new THREE.MeshStandardMaterial({color:0x222222}));
+  addPart(new THREE.Vector3(0.15, 0.4, 0), new THREE.CylinderGeometry(0.1, 0.08, 0.8, 8), new THREE.MeshStandardMaterial({color:0x222222}));
+
+  ragdolls.push({ parts });
+
+  // لکه خون
+  const bloodMat = new THREE.MeshBasicMaterial({ color: 0x8a0000, transparent: true, opacity: 0.9, depthWrite: false });
+  const bloodMesh = new THREE.Mesh(new THREE.CircleGeometry(1.5, 16), bloodMat);
+  bloodMesh.rotation.x = -Math.PI / 2;
+  bloodMesh.position.set(enemyData.pos.x, 0.02, enemyData.pos.z);
+  scene.add(bloodMesh);
+  bloodDecals.push({ mesh: bloodMesh, life: 10 });
+}
+
+function updateRagdolls(dt) {
+  for (let i = ragdolls.length - 1; i >= 0; i--) {
+    const r = ragdolls[i];
+    let anyAlive = false;
+    for (const p of r.parts) {
+      if (p.life <= 0) continue;
+      anyAlive = true;
+      p.life -= dt;
+      p.vel.y -= 25 * dt;
+      p.mesh.position.addScaledVector(p.vel, dt);
+      
+      if (p.mesh.position.y < 0.2) {
+        p.mesh.position.y = 0.2;
+        p.vel.y *= -0.3; p.vel.x *= 0.7; p.vel.z *= 0.7;
+        p.angVel.multiplyScalar(0.8);
+      }
+      p.mesh.rotation.x += p.angVel.x * dt; p.mesh.rotation.y += p.angVel.y * dt; p.mesh.rotation.z += p.angVel.z * dt;
+      if (p.life < 1) { p.mesh.material.transparent = true; p.mesh.material.opacity = p.life; }
+      if (p.life <= 0) scene.remove(p.mesh);
+    }
+    if (!anyAlive) ragdolls.splice(i, 1);
+  }
+  for (let i = bloodDecals.length - 1; i >= 0; i--) {
+    const b = bloodDecals[i];
+    b.life -= dt;
+    if (b.life < 3) b.mesh.material.opacity = (b.life / 3) * 0.9;
+    if (b.life <= 0) { scene.remove(b.mesh); bloodDecals.splice(i, 1); }
+  }
+}
+
+// ==========================================
+// 8. صداگذاری (Web Audio)
+// ==========================================
+const AudioSys = {
+  ctx: null,
+  init() { if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)(); },
+  shoot(type) {
+    if (!this.ctx) return;
+    const t = this.ctx.currentTime;
+    const buf = this.ctx.createBuffer(1, this.ctx.sampleRate * 0.2, this.ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+    const noise = this.ctx.createBufferSource(); noise.buffer = buf;
+    const filter = this.ctx.createBiquadFilter(); filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(3000, t); filter.frequency.exponentialRampToValueAtTime(100, t + 0.2);
+    const gain = this.ctx.createGain(); gain.gain.setValueAtTime(type === 'sniper' ? 1 : 0.6, t);
+    gain.gain.exponentialRampToValueAtTime(0.01, t + 0.2);
+    noise.connect(filter); filter.connect(gain); gain.connect(this.ctx.destination); noise.start(t);
+    
+    const osc = this.ctx.createOscillator(); osc.type = 'sine';
+    osc.frequency.setValueAtTime(150, t); osc.frequency.exponentialRampToValueAtTime(40, t + 0.1);
+    const oscGain = this.ctx.createGain(); oscGain.gain.setValueAtTime(1, t); oscGain.gain.exponentialRampToValueAtTime(0.01, t + 0.15);
+    osc.connect(oscGain); oscGain.connect(this.ctx.destination); osc.start(t);
+  },
+  hit(head) {
+    if (!this.ctx) return;
+    const t = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator(); osc.type = 'square';
+    osc.frequency.setValueAtTime(head ? 1200 : 600, t);
+    const gain = this.ctx.createGain(); gain.gain.setValueAtTime(0.2, t); gain.gain.exponentialRampToValueAtTime(0.01, t + 0.1);
+    osc.connect(gain); gain.connect(this.ctx.destination); osc.start(t);
+  }
+};
+
+// ==========================================
+// 9. شبکه (WebSocket & Multiplayer)
+// ==========================================
+function connectToServer(roomName) {
+  if (socket) socket.close();
+  socket = new WebSocket(SERVER_URL);
+
+  socket.onopen = () => {
+    console.log('Connected to server');
+    socket.send(JSON.stringify({ type: 'join_room', room: roomName }));
+    document.getElementById('onlineLobby').classList.add('hidden');
+    startGame(true);
+  };
+
+  socket.onmessage = (event) => {
+    const data = JSON.parse(event.data);
+
+    if (data.type === 'init') {
+      myId = data.id;
+    }
+    if (data.type === 'room_list') {
+      updateRoomList(data.rooms);
+    }
+    if (data.type === 'player_joined') {
+      if (data.id !== myId) {
+        addRemotePlayer(data.id, data.color);
+      }
+    }
+    if (data.type === 'player_left') {
+      if (remotePlayers[data.id]) {
+        scene.remove(remotePlayers[data.id].group);
+        delete remotePlayers[data.id];
+      }
+    }
+    if (data.type === 'state') {
+      if (data.id !== myId && remotePlayers[data.id]) {
+        const rp = remotePlayers[data.id];
+        rp.targetPos.set(data.x, data.y, data.z);
+        rp.targetYaw = data.yaw;
+        // انیمیشن راه رفتن بازیکن آنلاین
+        if (rp.pos.distanceTo(rp.targetPos) > 0.1) {
+           rp.walkPhase += 0.1;
+           rp.legL.rotation.x = Math.sin(rp.walkPhase) * 0.5;
+           rp.legR.rotation.x = Math.sin(rp.walkPhase + Math.PI) * 0.5;
+        } else {
+           rp.legL.rotation.x *= 0.8; rp.legR.rotation.x *= 0.8;
+        }
+      }
+    }
+    if (data.type === 'shoot') {
+      // پخش صدای شلیک بازیکن دیگر
+      AudioSys.shoot('rifle');
+    }
+  };
+
+  socket.onclose = () => {
+    console.log('Disconnected');
+    if (isOnline) exitToMenu();
+  };
+}
+
+function addRemotePlayer(id, color) {
+  const model = createCharacterModel(color); // رنگ تیم متفاوت
+  scene.add(model.group);
+  remotePlayers[id] = {
+    ...model, 
+    pos: new THREE.Vector3(0,0,0), 
+    targetPos: new THREE.Vector3(0,0,0), 
+    targetYaw: 0, 
+    walkPhase: 0
+  };
+}
+
+function updateRoomList(rooms) {
+  const list = document.getElementById('room-list');
+  list.innerHTML = '';
+  if (rooms.length === 0) {
+    list.innerHTML = '<div style="color:#888; text-align:center; margin-top:20px;">هیچ اتاقی یافت نشد</div>';
+    return;
+  }
+  rooms.forEach(r => {
+    const div = document.createElement('div');
+    div.className = 'room-item';
+    div.innerHTML = `<span class="room-name">${r.name}</span><span class="room-players">${r.players}/10 نفر</span>`;
+    div.onclick = () => connectToServer(r.name);
+    list.appendChild(div);
+  });
+}
+
+// ==========================================
+// 10. ورودی‌ها (Input Handling)
+// ==========================================
+const input = { moveX: 0, moveY: 0, fire: false, aim: false, jump: false };
+
+// جوی‌استیک
+const joyArea = document.getElementById('joy-area');
+const joyKnob = document.getElementById('joy-knob');
+let joyId = null, joyCenter = {x:0, y:0};
+const JOY_RADIUS = 50;
+
+joyArea.addEventListener('pointerdown', e => {
+  if (joyId !== null) return;
+  joyId = e.pointerId;
+  joyArea.setPointerCapture(e.pointerId);
+  const rect = joyArea.getBoundingClientRect();
+  joyCenter = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+  updateJoy(e.clientX, e.clientY);
+});
+joyArea.addEventListener('pointermove', e => { if (e.pointerId === joyId) updateJoy(e.clientX, e.clientY); });
+const endJoy = e => { if (e.pointerId === joyId) { joyId = null; input.moveX = 0; input.moveY = 0; joyKnob.style.transform = 'translate(-50%, -50%)'; } };
+joyArea.addEventListener('pointerup', endJoy);
+joyArea.addEventListener('pointercancel', endJoy);
+
+function updateJoy(cx, cy) {
+  let dx = cx - joyCenter.x, dy = cy - joyCenter.y;
+  const dist = Math.hypot(dx, dy);
+  if (dist > JOY_RADIUS) { dx = dx / dist * JOY_RADIUS; dy = dy / dist * JOY_RADIUS; }
+  joyKnob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+  input.moveX = dx / JOY_RADIUS;
+  input.moveY = dy / JOY_RADIUS;
+}
+
+// دکمه‌ها
+function bindBtn(id, onDown, onUp) {
+  const el = document.getElementById(id);
+  el.addEventListener('pointerdown', e => { e.preventDefault(); el.classList.add('active'); if (onDown) onDown(); });
+  const release = e => { el.classList.remove('active'); if (onUp) onUp(); };
+  el.addEventListener('pointerup', release); el.addEventListener('pointercancel', release); el.addEventListener('pointerout', release);
+}
+
+bindBtn('btn-fire', () => input.fire = true, () => input.fire = false);
+bindBtn('btn-ads', () => input.aim = true, () => input.aim = false);
+bindBtn('btn-reload', () => startReload());
+bindBtn('btn-jump', () => { if (player.onGround) { player.vel.y = 8; player.onGround = false; } });
+bindBtn('btn-switch', () => {
+  playerData.weaponId = playerData.weaponId === 'ak47' ? 'awp' : 'ak47';
+  equipWeapon(playerData.weaponId);
+});
+
+// چرخش دوربین
+let lookId = null, lookLast = {x:0, y:0};
+renderer.domElement.addEventListener('pointerdown', e => {
+  if (lookId !== null) return;
+  lookId = e.pointerId; lookLast = { x: e.clientX, y: e.clientY };
+});
+renderer.domElement.addEventListener('pointermove', e => {
+  if (e.pointerId === lookId) {
+    const dx = e.clientX - lookLast.x, dy = e.clientY - lookLast.y;
+    player.yaw -= dx * 0.005; player.pitch -= dy * 0.005;
+    player.pitch = Math.max(-Math.PI/2 + 0.1, Math.min(Math.PI/2 - 0.1, player.pitch));
+    lookLast = { x: e.clientX, y: e.clientY };
+  }
+});
+const endLook = e => { if (e.pointerId === lookId) lookId = null; };
+renderer.domElement.addEventListener('pointerup', endLook);
+renderer.domElement.addEventListener('pointercancel', endLook);
+
+// کیبورد دسکتاپ
+document.addEventListener('keydown', e => {
+  if (e.code === 'KeyW') input.moveY = -1; if (e.code === 'KeyS') input.moveY = 1;
+  if (e.code === 'KeyA') input.moveX = -1; if (e.code === 'KeyD') input.moveX = 1;
+  if (e.code === 'KeyR') startReload();
+  if (e.code === 'Space' && player.onGround) { player.vel.y = 8; player.onGround = false; }
+});
+document.addEventListener('keyup', e => {
+  if (['KeyW', 'KeyS'].includes(e.code)) input.moveY = 0;
+  if (['KeyA', 'KeyD'].includes(e.code)) input.moveX = 0;
+});
+document.addEventListener('mousedown', e => { if (e.button === 0) input.fire = true; });
+document.addEventListener('mouseup', e => { if (e.button === 0) input.fire = false; });
+document.addEventListener('mousemove', e => {
+  if (document.pointerLockElement === renderer.domElement) {
+    player.yaw -= e.movementX * 0.002; player.pitch -= e.movementY * 0.002;
+    player.pitch = Math.max(-Math.PI/2 + 0.1, Math.min(Math.PI/2 - 0.1, player.pitch));
+  }
+});
+renderer.domElement.addEventListener('click', () => { if (document.pointerLockElement !== renderer.domElement) renderer.domElement.requestPointerLock(); });
+
+// ==========================================
+// 11. منطق اصلی بازی
+// ==========================================
+let gameRunning = false;
+let lastTime = performance.now();
+let lastShot = 0;
+let lastNetUpdate = 0;
+const raycaster = new THREE.Raycaster();
+
+function startGame(online = false) {
+  AudioSys.init();
+  isOnline = online;
+  gameRunning = true;
+  playerData.health = 100; playerData.score = 0; playerData.kills = 0;
+  player.pos.set((Math.random()-0.5)*10, 0, (Math.random()-0.5)*10); // اسپاون تصادفی
+  player.vel.set(0, 0, 0);
+  player.yaw = 0; player.pitch = 0;
+  
+  clearMap();
+  createWorld();
+  buildViewmodel(playerData.weaponId);
+  updateHUD();
+  
+  document.getElementById('mainMenu').classList.add('hidden');
+  document.getElementById('onlineLobby').classList.add('hidden');
+  document.getElementById('gameOver').classList.add('hidden');
+  document.getElementById('hud').classList.remove('hidden');
+  document.getElementById('controls').classList.remove('hidden');
+  
+  if (!online) {
+    // اسپاون ربات‌ها
+    for(let i=0; i<5; i++) {
+      let sx, sz;
+      do { sx = (Math.random()-0.5)*40; sz = (Math.random()-0.5)*40; } while(Math.hypot(sx-player.pos.x, sz-player.pos.z) < 15);
+      createEnemy(sx, sz);
+    }
+  } else {
+    // ارسال اولین وضعیت
+    if (socket && socket.readyState === WebSocket.OPEN) {
+       socket.send(JSON.stringify({ type: 'join_game' }));
+    }
+  }
+}
+
+function clearMap() {
+  wallMeshes.forEach(m => scene.remove(m)); wallMeshes.length = 0;
+  colliders.length = 0;
+  enemyMeshes.forEach(m => scene.remove(m)); enemyMeshes.length = 0;
+  bloodDecals.forEach(b => scene.remove(b.mesh)); bloodDecals.length = 0;
+  ragdolls.forEach(r => r.parts.forEach(p => scene.remove(p.mesh))); ragdolls.length = 0;
+  bulletHoles.forEach(b => scene.remove(b.mesh)); bulletHoles.length = 0;
+  enemies.length = 0;
+  Object.values(remotePlayers).forEach(rp => scene.remove(rp.group));
+  for(let k in remotePlayers) delete remotePlayers[k];
+}
+
+function equipWeapon(wId) {
+  playerData.weaponId = wId;
+  player.ammo = WEAPONS[wId].mag;
+  player.reserve = WEAPONS[wId].reserve;
+  player.reloading = false;
+  buildViewmodel(wId);
+  updateHUD();
+}
+
+function startReload() {
+  const w = WEAPONS[playerData.weaponId];
+  if (player.reloading || player.ammo === w.mag || player.reserve <= 0) return;
+  player.reloading = true;
+  player.reloadTimer = 0;
+}
+
+function shoot() {
+  const w = WEAPONS[playerData.weaponId];
+  if (player.reloading || player.ammo <= 0) return;
+  player.ammo--; updateHUD();
+  AudioSys.shoot(w.scope ? 'sniper' : 'rifle');
+  
+  player.recoil += w.recoil;
+  if (viewmodel.userData.muzzle) viewmodel.userData.muzzle.intensity = 3;
+
+  if (isOnline) {
+    if (socket && socket.readyState === WebSocket.OPEN) {
+      socket.send(JSON.stringify({ type: 'shoot' }));
+    }
+    // در آنلاین، هیت‌باکس بازیکنان دیگر را چک می‌کنیم
+    const targets = [];
+    for(let id in remotePlayers) targets.push(remotePlayers[id].torso);
+    
+    const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+    raycaster.set(camera.position, dir); raycaster.far = 150;
+    const hits = raycaster.intersectObjects([...targets, ...wallMeshes], false);
+    
+    if(hits.length > 0) {
+      const hit = hits[0];
+      if(hit.object.parent && Object.values(remotePlayers).some(rp => rp.group === hit.object.parent)) {
+         showHitmarker(false);
+         AudioSys.hit(false);
+         // (در بازی‌های واقعی، دمیج به سرور فرستاده می‌شود)
+      }
+    }
+  } else {
+    // آفلاین
+    const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+    raycaster.set(camera.position, dir); raycaster.far = 150;
+    const hits = raycaster.intersectObjects([...enemyMeshes, ...wallMeshes], false);
+    
+    if (hits.length > 0) {
+      const hit = hits[0];
+      if (hit.object.userData.enemy) {
+        const e = hit.object.userData.enemy;
+        const isHead = hit.object.userData.isHead;
+        e.health -= w.dmg * (isHead ? 2.5 : 1);
+        updateEnemyHealthBar(e);
+        showHitmarker(isHead);
+        AudioSys.hit(isHead);
+        
+        if (e.health <= 0 && e.alive) {
+          e.alive = false; playerData.kills++; playerData.score += isHead ? 150 : 100; updateHUD();
+          spawnRagdoll(e, dir);
+          for (let i = enemyMeshes.length - 1; i >= 0; i--) if (enemyMeshes[i].userData.enemy === e) enemyMeshes.splice(i, 1);
+          enemies.splice(enemies.indexOf(e), 1);
+        }
+      } else {
+        // جای گلوله روی دیوار
+        const hole = new THREE.Mesh(new THREE.CircleGeometry(0.05, 8), new THREE.MeshBasicMaterial({ color: 0x111111, side: THREE.DoubleSide }));
+        hole.position.copy(hit.point).addScaledVector(hit.face.normal, 0.01);
+        hole.lookAt(hit.point.clone().add(hit.face.normal));
+        scene.add(hole); bulletHoles.push({ mesh: hole, life: 10 });
+      }
+    }
+  }
+}
+
+function updateHUD() {
+  document.getElementById('ammo-current').textContent = player.ammo;
+  document.getElementById('ammo-reserve').textContent = '/ ' + player.reserve;
+  document.getElementById('weapon-name').textContent = WEAPONS[playerData.weaponId].name;
+  document.getElementById('score-box').textContent = `کشته: ${playerData.kills}`;
+  document.getElementById('health-bar').style.width = Math.max(0, playerData.health) + '%';
+}
+function showHitmarker(isHead) {
+  const hm = document.getElementById('hitmarker');
+  hm.className = isHead ? 'head head show' : 'show';
+  setTimeout(() => hm.className = isHead ? 'head' : '', 200);
+}
+
+// ==========================================
+// 12. آپدیت فریم‌ها (Game Loop)
+// ==========================================
+function updatePlayer(dt) {
+  const moveSpeed = input.aim ? 2.5 : 6;
+  const fwd = new THREE.Vector3(-Math.sin(player.yaw), 0, -Math.cos(player.yaw));
+  const right = new THREE.Vector3(Math.cos(player.yaw), 0, -Math.sin(player.yaw));
+  
+  const moveDir = new THREE.Vector3();
+  moveDir.addScaledVector(fwd, -input.moveY);
+  moveDir.addScaledVector(right, input.moveX);
+  if (moveDir.length() > 1) moveDir.normalize();
+  
+  player.vel.x = moveDir.x * moveSpeed;
+  player.vel.z = moveDir.z * moveSpeed;
+  player.vel.y -= 25 * dt; // گرانش
+  
+  // برخورد با دیوار (AABB)
+  let nextX = player.pos.x + player.vel.x * dt;
+  let nextZ = player.pos.z + player.vel.z * dt;
+  let nextY = player.pos.y + player.vel.y * dt;
+  
+  const checkCol = (x, z) => {
+    for (const c of colliders) {
+      if (x > c.minX - player.radius && x < c.maxX + player.radius &&
+          z > c.minZ - player.radius && z < c.maxZ + player.radius &&
+          player.pos.y < c.maxY) return true;
+    }
+    return false;
+  };
+  if (!checkCol(nextX, player.pos.z)) player.pos.x = nextX;
+  if (!checkCol(player.pos.x, nextZ)) player.pos.z = nextZ;
+  
+  player.pos.y = nextY;
+  if (player.pos.y <= 0) { player.pos.y = 0; player.vel.y = 0; player.onGround = true; } else { player.onGround = false; }
+
+  // دوربین
+  if (input.aim && WEAPONS[playerData.weaponId].scope) {
+    document.getElementById('scope-overlay').style.display = 'block';
+    document.getElementById('crosshair').style.opacity = '0';
+  } else {
+    document.getElementById('scope-overlay').style.display = 'none';
+    document.getElementById('crosshair').style.opacity = '1';
+  }
+
+  camera.position.set(player.pos.x, player.pos.y + player.height, player.pos.z);
+  camera.rotation.set(player.pitch + player.recoil, player.yaw, 0);
+  player.recoil *= 0.85;
+  
+  if (viewmodel.userData.muzzle) viewmodel.userData.muzzle.intensity *= 0.8;
+  const targetPos = input.aim ? new THREE.Vector3(0, -0.15, -0.4) : new THREE.Vector3(0.25, -0.25, -0.5);
+  viewmodel.position.lerp(targetPos, dt * 15);
+}
+
+function updateReload(dt) {
+  if (!player.reloading) return;
+  player.reloadTimer += dt * 1000;
+  const w = WEAPONS[playerData.weaponId];
+  viewmodel.rotation.x = Math.sin((player.reloadTimer / w.reload) * Math.PI) * 0.8;
+  
+  if (player.reloadTimer >= w.reload) {
+    player.reloading = false; viewmodel.rotation.x = 0;
+    const take = Math.min(w.mag - player.ammo, player.reserve);
+    player.ammo += take; player.reserve -= take;
+    updateHUD();
+  }
+}
+
+function updateEnemies(dt) {
+  if (isOnline) return;
+  for (const e of enemies) {
+    if (!e.alive) continue;
+    const dx = player.pos.x - e.pos.x, dz = player.pos.z - e.pos.z;
+    const dist = Math.hypot(dx, dz);
+    e.group.rotation.y = Math.atan2(dx, dz);
+    
+    if (dist > 15) {
+      const spd = 3 * dt;
+      e.pos.x += (dx / dist) * spd; e.pos.z += (dz / dist) * spd;
+      e.walkPhase += dt * 10;
+      e.legL.rotation.x = Math.sin(e.walkPhase) * 0.5;
+      e.legR.rotation.x = Math.sin(e.walkPhase + Math.PI) * 0.5;
+    } else {
+      e.fireCd -= dt;
+      if (e.fireCd <= 0) {
+        e.fireCd = 1.5 + Math.random();
+        AudioSys.shoot('rifle');
+        if (Math.random() < 0.7 && dist < 30) {
+          playerData.health -= 10;
+          document.getElementById('dmg-indicator').style.opacity = '1';
+          setTimeout(() => document.getElementById('dmg-indicator').style.opacity = '0', 300);
+          updateHUD();
+          if (playerData.health <= 0) gameOver();
+        }
+      }
+    }
+    e.group.position.copy(e.pos);
+  }
+}
+
+function updateNetwork(dt) {
+  if (!isOnline || !socket || socket.readyState !== WebSocket.OPEN) return;
+
+  // ارسال موقعیت ما به سرور (۱۵ بار در ثانیه)
+  lastNetUpdate += dt;
+  if (lastNetUpdate > 0.06) {
+    lastNetUpdate = 0;
+    socket.send(JSON.stringify({
+      type: 'state', x: player.pos.x, y: player.pos.y, z: player.pos.z, yaw: player.yaw
+    }));
+  }
+
+  // درون‌یابی (Interpolation) حرکت بازیکنان دیگر
+  for (let id in remotePlayers) {
+    const rp = remotePlayers[id];
+    rp.pos.lerp(rp.targetPos, dt * 10); // نرم کردن حرکت
+    rp.group.position.copy(rp.pos);
+    
+    // چرخش نرم
+    let diff = rp.targetYaw - rp.group.rotation.y;
+    while (diff > Math.PI) diff -= Math.PI * 2;
+    while (diff < -Math.PI) diff += Math.PI * 2;
+    rp.group.rotation.y += diff * dt * 10;
+  }
+}
+
+function animate() {
+  requestAnimationFrame(animate);
+  const now = performance.now();
+  const dt = Math.min((now - lastTime) / 1000, 0.05);
+  lastTime = now;
+  
+  if (gameRunning) {
+    updatePlayer(dt);
+    updateReload(dt);
+    updateEnemies(dt);
+    updateNetwork(dt);
+    updateRagdolls(dt);
+    
+    // شلیک
+    const w = WEAPONS[playerData.weaponId];
+    if (input.fire && !player.reloading && player.ammo > 0) {
+      if (w.auto || !input.prevFire) {
+        if (now - lastShot > w.rate) { shoot(); lastShot = now; input.prevFire = true; }
+      }
+    } else { input.prevFire = false; }
+  }
+  renderer.render(scene, camera);
+}
+
+function gameOver() {
+  gameRunning = false;
+  document.getElementById('go-title').textContent = 'شما مردید';
+  document.getElementById('go-title').style.color = '#f00';
+  document.getElementById('go-stats').textContent = `کشته‌ها: ${playerData.kills} | امتیاز: ${playerData.score}`;
+  document.getElementById('gameOver').classList.remove('hidden');
+  document.getElementById('hud').classList.add('hidden');
+  document.getElementById('controls').classList.add('hidden');
+}
+
+// ==========================================
+// 13. مدیریت منوها و اتصال اولیه
+// ==========================================
+document.getElementById('btn-mp').addEventListener('click', () => {
+  if (SERVER_URL.includes('YOUR-SERVER-URL')) {
+    alert('ابتدا آدرس سرور Render خود را در کد (متغیر SERVER_URL) قرار دهید.');
+    return;
+  }
+  document.getElementById('mainMenu').classList.add('hidden');
+  document.getElementById('onlineLobby').classList.remove('hidden');
+  if (!socket || socket.readyState !== WebSocket.OPEN) {
+    connectToServer(null); // اتصال فقط برای گرفتن لیست اتاق‌ها
+  }
+});
+
+document.getElementById('btn-sp').addEventListener('click', () => {
+  isOnline = false;
+  startGame(false);
+});
+
+document.getElementById('btn-create-room').addEventListener('click', () => {
+  let name = document.getElementById('room-name-input').value.trim();
+  if (!name) name = 'اتاق ' + Math.floor(Math.random() * 100);
+  connectToServer(name);
+});
+
+document.getElementById('btn-back-menu').addEventListener('click', () => {
+  document.getElementById('onlineLobby').classList.add('hidden');
+  document.getElementById('mainMenu').classList.remove('hidden');
+});
+
+document.getElementById('btn-replay').addEventListener('click', () => startGame(isOnline));
+document.getElementById('btn-exit').addEventListener('click', () => {
+  document.getElementById('gameOver').classList.add('hidden');
+  document.getElementById('mainMenu').classList.remove('hidden');
+  clearMap();
+});
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// شروع لودینگ
+let progress = 0;
+const loadInterval = setInterval(() => {
+  progress += Math.random() * 15;
+  if (progress > 100) progress = 100;
+  document.getElementById('load-fill').style.width = progress + '%';
+  if (progress === 100) {
+    clearInterval(loadInterval);
+    document.getElementById('load-text').textContent = 'آماده!';
+    setTimeout(() => {
+      document.getElementById('loading').classList.add('hidden');
+      document.getElementById('mainMenu').classList.remove('hidden');
+    }, 500);
+  }
+}, 150);
+
+animate();
+
+</script>
+</body>
+</html>
